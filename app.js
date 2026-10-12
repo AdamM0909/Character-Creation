@@ -14,9 +14,9 @@ const NOTE_TYPES = {
 };
 const REL_KINDS = ["Family", "Friend", "Ally", "Rival", "Enemy", "Lover", "Mentor", "Colleague", "Other"];
 const FIELDS = ["name","nickname","age","race","gender","role","occupation","status","birth","build","looks",
-  "alignment","appearance","personality","goals","flaws","background","family","skills"];
+  "alignment","appearance","personality","goals","flaws","background","family","skills","voiceStyle","catchphrases"];
 
-let state = { characters: [], settings: { theme: "" }, currentId: null };
+let state = { characters: [], settings: { theme: "" }, currentId: null, templates: [], lastBackup: 0, backupSnooze: 0 };
 let ui = { tab: "profile", tag: "", lb: { i: 0 } };
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -35,19 +35,19 @@ const DB = {
       r.onerror = () => rej(r.error);
     });
   },
-  async get() {
+  async get(key = "state") {
     const db = await this.open();
     return new Promise((res, rej) => {
-      const q = db.transaction("kv").objectStore("kv").get("state");
+      const q = db.transaction("kv").objectStore("kv").get(key);
       q.onsuccess = () => res(q.result);
       q.onerror = () => rej(q.error);
     });
   },
-  async set(v) {
+  async set(v, key = "state") {
     const db = await this.open();
     return new Promise((res, rej) => {
       const t = db.transaction("kv", "readwrite");
-      t.objectStore("kv").put(v, "state");
+      t.objectStore("kv").put(v, key);
       t.oncomplete = res;
       t.onerror = () => rej(t.error);
     });
@@ -62,6 +62,7 @@ function save(now) {
     try {
       await DB.set(JSON.parse(JSON.stringify(state)));
       $("#saved").textContent = "Saved";
+      window.afterSave?.();
     } catch (e) {
       $("#saved").textContent = "Save failed";
       toast("Could not save: " + (e.message || e));
@@ -73,7 +74,7 @@ function touch(c) { c.updated = Date.now(); }
 
 /* ---------- model ---------- */
 function blankChar() {
-  const c = { id: uid(), created: Date.now(), updated: Date.now(), tags: [], images: [], mainImage: null, notes: [], relations: [] };
+  const c = { id: uid(), created: Date.now(), updated: Date.now(), tags: [], images: [], mainImage: null, notes: [], relations: [], customFields: [], timeline: [], voiceTraits: [], voiceLines: [] };
   FIELDS.forEach(f => c[f] = "");
   return c;
 }
@@ -127,11 +128,12 @@ function renderSidebar() {
 /* ---------- editor ---------- */
 function showEditor() {
   const c = cur();
+  $("#globalView").hidden = true;
   $("#empty").hidden = !!c;
   $("#editor").hidden = !c;
   if (!c) return;
   FIELDS.forEach(f => { const el = $(`[data-f="${f}"]`); if (el) el.value = c[f] || ""; });
-  renderTags(); renderPortrait(); renderNotes(); renderGallery(); renderRelations(); updateCounts(); setTab(ui.tab);
+  renderTags(); renderPortrait(); renderNotes(); renderGallery(); renderRelations(); updateCounts(); window.renderExtras?.(); setTab(ui.tab);
 }
 function setTab(t) {
   ui.tab = t;
@@ -181,10 +183,12 @@ function renderNotes() {
       <div class="card-top">
         <span class="badge">${esc(n.type)}</span>
         <input data-nf="title" value="${esc(n.title)}" placeholder="Note title">
+        <button type="button" class="icon-btn" data-act="preview" title="Toggle formatted preview">${ui.preview?.has(n.id) ? "✏️" : "👁"}</button>
+        <button type="button" class="icon-btn" data-act="focus" title="Focus mode">⛶</button>
         <button type="button" class="icon-btn" data-act="pin" title="Pin to top">${n.pinned ? "📌" : "📍"}</button>
         <button type="button" class="icon-btn" data-act="delnote" title="Delete note">🗑</button>
       </div>
-      <textarea data-nf="body" placeholder="Write your ${esc(n.type.toLowerCase())} note…">${esc(n.body)}</textarea>
+      ${ui.preview?.has(n.id) ? `<div class="md">${md(n.body)}</div>` : `<textarea data-nf="body" placeholder="Write your ${esc(n.type.toLowerCase())} note… (Markdown works: # heading, **bold**, *italic*, - list)">${esc(n.body)}</textarea>`}
       <div class="card-foot muted tiny"><span>${new Date(n.updated).toLocaleString()}</span><span class="wc">${wc(n.body)} words</span></div>
     </div>`).join("") || `<p class="muted">No notes yet. Pick a type above and add one.</p>`;
 }
@@ -362,6 +366,8 @@ function bind() {
     if (!act || !card) return;
     const c = cur(); const n = c.notes.find(x => x.id === card.dataset.nid);
     if (act === "pin") { n.pinned = !n.pinned; }
+    if (act === "preview") { (ui.preview ||= new Set()); ui.preview.has(n.id) ? ui.preview.delete(n.id) : ui.preview.add(n.id); renderNotes(); return; }
+    if (act === "focus") { openFocus(n.title || n.type + " note", () => n.body, v => { n.body = v; n.updated = Date.now(); touch(c); renderNotes(); updateCounts(); save(); }); return; }
     if (act === "delnote") { if ((n.title || n.body) && !confirm("Delete this note?")) return; c.notes = c.notes.filter(x => x !== n); }
     touch(c); renderNotes(); updateCounts(); save();
   });
@@ -424,7 +430,8 @@ function bind() {
   // backup
   $("#exportBtn").onclick = () => {
     download(`character-vault-${new Date().toISOString().slice(0, 10)}.json`,
-      JSON.stringify({ app: "character-vault", version: 1, characters: state.characters }, null, 1), "application/json");
+      JSON.stringify({ app: "character-vault", version: 2, characters: state.characters, templates: state.templates }, null, 1), "application/json");
+    state.lastBackup = Date.now(); save(); window.renderBackup?.();
     toast("Backup downloaded");
   };
   $("#importBtn").onclick = () => $("#importFile").click();
@@ -433,6 +440,7 @@ function bind() {
     try {
       const data = JSON.parse(await f.text());
       if (data.app !== "character-vault" || !Array.isArray(data.characters)) throw new Error("Not a Character Vault backup");
+      (data.templates || []).forEach(t => { if (!state.templates.some(x => x.name === t.name)) state.templates.push(t); });
       const ids = new Set(state.characters.map(c => c.id));
       let added = 0;
       data.characters.forEach(c => {
@@ -447,6 +455,35 @@ function bind() {
   window.addEventListener("beforeunload", () => { if (saveTimer) save(true); });
 }
 
+/* ---------- markdown + focus mode ---------- */
+function md(src) {
+  const inline = t => esc(t)
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  let out = "", list = false;
+  for (const line of String(src || "").split("\n")) {
+    const li = line.match(/^\s*[-*]\s+(.*)/);
+    if (li) { if (!list) { out += "<ul>"; list = true; } out += `<li>${inline(li[1])}</li>`; continue; }
+    if (list) { out += "</ul>"; list = false; }
+    const h = line.match(/^(#{1,3})\s+(.*)/);
+    if (h) out += `<h${h[1].length + 2}>${inline(h[2])}</h${h[1].length + 2}>`;
+    else if (line.trim()) out += `<p>${inline(line)}</p>`;
+  }
+  return out + (list ? "</ul>" : "") || '<p class="muted">Nothing here yet.</p>';
+}
+function openFocus(title, get, set) {
+  const m = $("#modal");
+  m.className = "modal focus";
+  m.innerHTML = `<div class="modal-head"><b>${esc(title)}</b><span class="spacer"></span><span class="muted tiny" id="fwc"></span><button type="button" class="btn small" id="fclose">Done</button></div>
+    <textarea id="ftext" spellcheck="true"></textarea>`;
+  const t = $("#ftext"); t.value = get();
+  const upd = () => $("#fwc").textContent = wc(t.value) + " words";
+  t.oninput = () => { set(t.value); upd(); };
+  $("#fclose").onclick = closeOverlay; upd();
+  $("#overlay").hidden = false; t.focus();
+}
+function closeOverlay() { $("#overlay").hidden = true; $("#modal").innerHTML = ""; }
+
 /* ---------- boot ---------- */
 (async function init() {
   try {
@@ -455,5 +492,6 @@ function bind() {
   } catch (e) { toast("Storage unavailable: changes will not persist"); }
   state.characters = state.characters.map(c => Object.assign(blankChar(), c));
   if (!state.characters.some(c => c.id === state.currentId)) state.currentId = state.characters[0]?.id ?? null;
-  applyTheme(); bind(); renderSidebar(); showEditor();
+  state.templates ||= [];
+  applyTheme(); bind(); window.initFeatures?.(); renderSidebar(); showEditor();
 })();

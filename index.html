@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Character Vault</title>
+<meta name="description" content="A private character codex for writers: profiles, notes, backgrounds and portraits.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%9C%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <h1>Character Vault</h1>
+      <button class="icon-btn" id="themeBtn" title="Toggle dark / light">🌓</button>
+    </div>
+    <button class="btn primary block" id="newBtn">+ New character</button>
+    <input type="search" id="search" placeholder="Search names, tags, notes…">
+    <div class="row">
+      <select id="filterRole" title="Filter by role"></select>
+      <select id="sortBy" title="Sort">
+        <option value="updated">Recently edited</option>
+        <option value="name">Name A–Z</option>
+        <option value="age">Age</option>
+        <option value="created">Newest created</option>
+      </select>
+    </div>
+    <div class="tagcloud" id="tagCloud"></div>
+    <ul class="charlist" id="charList"></ul>
+    <div class="side-foot">
+      <div class="row">
+        <button class="btn small" id="exportBtn">Export backup</button>
+        <button class="btn small" id="importBtn">Import</button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+      </div>
+      <p class="muted tiny" id="stats"></p>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+    <button class="btn small mobile-only" id="menuBtn">☰ Characters</button>
+    <div id="empty" class="empty">
+      <h2>Welcome to your vault</h2>
+      <p>Create a character to start building their profile, notes, background and portraits.</p>
+      <p class="muted">Everything is saved privately in this browser. Use <b>Export backup</b> regularly to keep a copy.</p>
+    </div>
+
+    <form id="editor" class="editor" hidden autocomplete="off">
+      <header class="hero">
+        <div class="portrait" id="portrait" title="Main portrait"></div>
+        <div class="hero-fields">
+          <input class="title-input" data-f="name" placeholder="Character name">
+          <input class="subtitle-input" data-f="nickname" placeholder="Nickname / alias / title">
+          <div class="hero-actions">
+            <button type="button" class="btn small" id="dupBtn">Duplicate</button>
+            <button type="button" class="btn small" id="printBtn">Print sheet</button>
+            <button type="button" class="btn small danger" id="delBtn">Delete</button>
+            <span class="muted tiny" id="saved">Saved</span>
+          </div>
+        </div>
+      </header>
+
+      <nav class="tabs" id="tabs">
+        <button type="button" data-tab="profile" class="active">Profile</button>
+        <button type="button" data-tab="background">Background</button>
+        <button type="button" data-tab="notes">Notes <span class="count" id="noteCount"></span></button>
+        <button type="button" data-tab="gallery">Gallery <span class="count" id="imgCount"></span></button>
+        <button type="button" data-tab="relations">Relationships <span class="count" id="relCount"></span></button>
+      </nav>
+
+      <section class="tab" data-panel="profile">
+        <div class="grid">
+          <label>Age <input data-f="age" placeholder="e.g. 27, ageless, unknown"></label>
+          <label>Race / species <input data-f="race" placeholder="Human, elf, android…"></label>
+          <label>Gender / pronouns <input data-f="gender"></label>
+          <label>Role in story
+            <select data-f="role">
+              <option value="">(unset)</option>
+              <option>Protagonist</option><option>Deuteragonist</option><option>Antagonist</option>
+              <option>Love interest</option><option>Mentor</option><option>Sidekick</option>
+              <option>Supporting</option><option>Minor</option><option>Background</option>
+            </select>
+          </label>
+          <label>Occupation <input data-f="occupation"></label>
+          <label>Status
+            <select data-f="status">
+              <option value="">(unset)</option>
+              <option>Alive</option><option>Deceased</option><option>Missing</option><option>Unknown</option>
+            </select>
+          </label>
+          <label>Birthday / birthplace <input data-f="birth"></label>
+          <label>Height / build <input data-f="build"></label>
+          <label>Eye &amp; hair <input data-f="looks"></label>
+          <label>Alignment / morality <input data-f="alignment" placeholder="Chaotic good…"></label>
+        </div>
+        <label>Tags <span class="muted tiny">(press Enter or comma)</span>
+          <div class="tagbox" id="tagBox"><input id="tagInput" placeholder="add tag"></div>
+        </label>
+        <label>Appearance <textarea data-f="appearance" rows="4" placeholder="Distinguishing features, style, mannerisms…"></textarea></label>
+        <label>Personality <textarea data-f="personality" rows="4" placeholder="Traits, quirks, fears, voice…"></textarea></label>
+        <div class="grid two">
+          <label>Goals &amp; motivations <textarea data-f="goals" rows="4"></textarea></label>
+          <label>Flaws &amp; fears <textarea data-f="flaws" rows="4"></textarea></label>
+        </div>
+      </section>
+
+      <section class="tab" data-panel="background" hidden>
+        <label>Background / history <textarea data-f="background" rows="14" placeholder="Where they came from, what shaped them…"></textarea></label>
+        <label>Family &amp; upbringing <textarea data-f="family" rows="5"></textarea></label>
+        <label>Skills &amp; abilities <textarea data-f="skills" rows="5"></textarea></label>
+        <p class="muted tiny" id="wordCount"></p>
+      </section>
+
+      <section class="tab" data-panel="notes" hidden>
+        <div class="toolbar">
+          <select id="noteType"></select>
+          <button type="button" class="btn primary" id="addNote">+ Add note</button>
+          <span class="spacer"></span>
+          <select id="noteFilter" title="Filter notes"></select>
+        </div>
+        <div id="notesList" class="notes"></div>
+      </section>
+
+      <section class="tab" data-panel="gallery" hidden>
+        <div class="drop" id="drop">
+          <p><b>Drop photos here</b> or</p>
+          <button type="button" class="btn primary" id="pickImg">Upload photos</button>
+          <input type="file" id="imgFile" accept="image/*" multiple hidden>
+          <p class="muted tiny">Images are resized and stored in this browser. Click a photo to enlarge, ★ to make it the main portrait.</p>
+        </div>
+        <div id="gallery" class="gallery"></div>
+      </section>
+
+      <section class="tab" data-panel="relations" hidden>
+        <div class="toolbar">
+          <button type="button" class="btn primary" id="addRel">+ Add relationship</button>
+        </div>
+        <div id="relList" class="notes"></div>
+      </section>
+    </form>
+  </main>
+</div>
+
+<div id="lightbox" class="lightbox" hidden>
+  <button class="icon-btn close" id="lbClose">✕</button>
+  <button class="icon-btn nav prev" id="lbPrev">‹</button>
+  <img id="lbImg" alt="">
+  <button class="icon-btn nav next" id="lbNext">›</button>
+  <p id="lbCap"></p>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -16,6 +16,11 @@
       <button class="icon-btn" id="themeBtn" title="Toggle dark / light">🌓</button>
     </div>
     <button class="btn primary block" id="newBtn">+ New character</button>
+    <div class="row">
+      <button class="btn small" id="viewTimeline" title="All events from every character">Timeline</button>
+      <button class="btn small" id="viewWeb" title="Relationship web">Web</button>
+      <button class="btn small" id="searchBtn" title="Search everything (Ctrl+K)">Search</button>
+    </div>
     <input type="search" id="search" placeholder="Search names, tags, notes…">
     <div class="row">
       <select id="filterRole" title="Filter by role"></select>
@@ -34,12 +39,16 @@
         <button class="btn small" id="importBtn">Import</button>
         <input type="file" id="importFile" accept="application/json" hidden>
       </div>
+      <button class="btn small block" id="linkBtn" style="margin-top:6px" hidden>Link auto-backup file</button>
+      <p class="muted tiny" id="backupInfo"></p>
       <p class="muted tiny" id="stats"></p>
     </div>
   </aside>
 
   <main class="main" id="main">
     <button class="btn small mobile-only" id="menuBtn">☰ Characters</button>
+    <div id="backupBar" class="banner" hidden></div>
+    <section id="globalView" hidden></section>
     <div id="empty" class="empty">
       <h2>Welcome to your vault</h2>
       <p>Create a character to start building their profile, notes, background and portraits.</p>
@@ -54,7 +63,8 @@
           <input class="subtitle-input" data-f="nickname" placeholder="Nickname / alias / title">
           <div class="hero-actions">
             <button type="button" class="btn small" id="dupBtn">Duplicate</button>
-            <button type="button" class="btn small" id="printBtn">Print sheet</button>
+            <button type="button" class="btn small" id="mdBtn">Export .md</button>
+            <button type="button" class="btn small" id="printBtn">PDF / print</button>
             <button type="button" class="btn small danger" id="delBtn">Delete</button>
             <span class="muted tiny" id="saved">Saved</span>
           </div>
@@ -64,6 +74,8 @@
       <nav class="tabs" id="tabs">
         <button type="button" data-tab="profile" class="active">Profile</button>
         <button type="button" data-tab="background">Background</button>
+        <button type="button" data-tab="voice">Voice</button>
+        <button type="button" data-tab="timeline">Timeline <span class="count" id="tlCount"></span></button>
         <button type="button" data-tab="notes">Notes <span class="count" id="noteCount"></span></button>
         <button type="button" data-tab="gallery">Gallery <span class="count" id="imgCount"></span></button>
         <button type="button" data-tab="relations">Relationships <span class="count" id="relCount"></span></button>
@@ -94,6 +106,13 @@
           <label>Eye &amp; hair <input data-f="looks"></label>
           <label>Alignment / morality <input data-f="alignment" placeholder="Chaotic good…"></label>
         </div>
+        <div class="toolbar wrap">
+          <button type="button" class="btn small" id="nameGenBtn">🎲 Name generator</button>
+          <span class="muted tiny">Age calculator:</span>
+          <input id="calcBirth" type="number" placeholder="Birth year" style="width:110px">
+          <input id="calcStory" type="number" placeholder="Story year" style="width:110px">
+          <button type="button" class="btn small" id="calcBtn">Set age</button>
+        </div>
         <label>Tags <span class="muted tiny">(press Enter or comma)</span>
           <div class="tagbox" id="tagBox"><input id="tagInput" placeholder="add tag"></div>
         </label>
@@ -103,13 +122,40 @@
           <label>Goals &amp; motivations <textarea data-f="goals" rows="4"></textarea></label>
           <label>Flaws &amp; fears <textarea data-f="flaws" rows="4"></textarea></label>
         </div>
+        <h3>Custom fields</h3>
+        <div class="toolbar wrap">
+          <select id="tplSelect" style="width:auto"></select>
+          <button type="button" class="btn small" id="applyTpl">Apply template</button>
+          <button type="button" class="btn small" id="saveTpl">Save my fields as template</button>
+          <button type="button" class="btn small" id="delTpl">Delete template</button>
+          <button type="button" class="btn small primary" id="addField">+ Add field</button>
+        </div>
+        <div id="customFields" class="grid"></div>
       </section>
 
       <section class="tab" data-panel="background" hidden>
+        <div class="toolbar"><span class="spacer"></span><button type="button" class="btn small" id="focusBg">⛶ Focus mode</button></div>
         <label>Background / history <textarea data-f="background" rows="14" placeholder="Where they came from, what shaped them…"></textarea></label>
         <label>Family &amp; upbringing <textarea data-f="family" rows="5"></textarea></label>
         <label>Skills &amp; abilities <textarea data-f="skills" rows="5"></textarea></label>
         <p class="muted tiny" id="wordCount"></p>
+      </section>
+
+      <section class="tab" data-panel="voice" hidden>
+        <label>Speech style <textarea data-f="voiceStyle" rows="4" placeholder="Rhythm, vocabulary, accent, how they talk when angry or nervous…"></textarea></label>
+        <label>Catchphrases &amp; verbal tics <textarea data-f="catchphrases" rows="3"></textarea></label>
+        <div class="label-like">Dialogue checklist</div>
+        <div id="voiceChecks" class="checks"></div>
+        <div class="toolbar"><div class="label-like" style="margin:0">Sample lines</div><span class="spacer"></span><button type="button" class="btn small primary" id="addLine">+ Add line</button></div>
+        <div id="voiceLines" class="notes"></div>
+      </section>
+
+      <section class="tab" data-panel="timeline" hidden>
+        <div class="toolbar">
+          <button type="button" class="btn primary" id="addEvent">+ Add event</button>
+          <span class="muted tiny">Dates can be years (e.g. 1204, -50) or any text. Events are sorted by the first number found.</span>
+        </div>
+        <div id="eventList" class="timeline"></div>
       </section>
 
       <section class="tab" data-panel="notes" hidden>
@@ -142,6 +188,7 @@
   </main>
 </div>
 
+<div id="overlay" class="overlay" hidden><div class="modal" id="modal"></div></div>
 <div id="lightbox" class="lightbox" hidden>
   <button class="icon-btn close" id="lbClose">✕</button>
   <button class="icon-btn nav prev" id="lbPrev">‹</button>
@@ -152,5 +199,6 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="app.js"></script>
+<script src="features.js"></script>
 </body>
 </html>

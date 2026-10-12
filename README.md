@@ -1,32 +1,34 @@
 # Character Vault
 
-A private character codex for writers, hosted free on GitHub Pages. No server, no account.
+A private codex for writers, hosted free on GitHub Pages. No server, no account: everything is stored in your browser.
+
+## What it holds
+Characters, **places**, **factions** and **items**, each with profile fields, background, timeline, scenes, notes, photos and connections. Characters also get a **Voice** tab and a character **Arc** builder.
 
 ## Features
-- Character profiles: name, nickname, age, race/species, gender, role, occupation, status, build, alignment, appearance, personality, goals, flaws
-- Background, family and skills sections with word counts
-- Typed notes (Story, Plot, Backstory, Relationship, Dialogue, Secret, Research, Arc, Other), color coded, filterable and pinnable
-- Photo gallery: upload, drag and drop or paste, captions, main portrait, full-screen viewer
-- Relationships tracker
-- Tags, search across everything, role filter, sorting
-- Dark mode, mobile friendly, printable character sheets
-- Autosave in your browser, plus JSON export/import for backups
-- **Backups:** "last backed up" tracking, a reminder banner after 7 days, and (Chrome/Edge) optional auto-backup to a JSON file you choose, for example inside a synced Dropbox/Drive/OneDrive folder
-- **Timelines:** per-character events sorted by year, plus a master timeline of every character
-- **Relationship web:** a diagram built from the relationships you enter (matching names link characters automatically)
-- **Custom fields and templates:** add your own fields, apply built-in templates (Fantasy hero, Villain, Sci-fi crew, Romance lead) or save your own
-- **Voice tab:** speech style, catchphrases, dialogue checklist and sample lines
-- **Writing tools:** Markdown notes with preview, distraction-free focus mode, name generator (fantasy, elven, dwarven, sci-fi, modern, medieval), age calculator
-- **Search everything:** press Ctrl+K (or Cmd+K) to search every character, note, event and line
-- **Export a character as Markdown** or print/save as PDF
+- **Dashboard** with stats, a daily word goal and streak, a prompt of the day, a story clock and completeness nudges
+- **Browse** as cards or a sortable table; filter by type, story, kind, tag or favorites
+- **Stories** (folders): group entries by book, series or world; favorites; drag-to-reorder notes, events, beats and photos
+- **Completeness meter** on every entry showing what is still missing
+- **Master timeline**, **scenes and chapters** tracker, **relationship web** (draggable), **family tree**, **maps with pins**
+- **Story year and ages:** set birth years and ages follow the story year everywhere
+- **Compare and merge** entries, with duplicate detection
+- **Photos:** upload, drop, paste or add from a link; crop, rotate, mood-board layout, lightbox
+- **Notes:** typed and color coded, Markdown with preview, focus mode, pinning
+- **Writing tools:** writing prompts, name generator, custom fields and templates, spell check toggle, find and replace across everything
+- **Search everything** and run commands with Ctrl/Cmd+K; keyboard shortcuts (press `?`)
+- **Safety:** version history snapshots, a 30-day Trash for entries, notes, photos and maps, backup reminders, optional auto-backup file (Chrome/Edge), password-encrypted (AES-256) exports, merge-safe imports
+- **Share:** export a polished HTML page, PDF (via print) or Markdown, with Secret notes left out by default
+- **Look:** 7 themes, custom accent color, serif or sans headings, compact density, hideable tabs and fields
+- **Installable app (PWA)** that works offline
 
 ## Publish on GitHub Pages
-1. Merge this branch into `main`.
-2. In the repo go to **Settings > Pages** and set **Source** to **GitHub Actions**.
-3. The included workflow deploys the site; your URL appears in the Actions run.
+1. In the repo go to **Settings > Pages** and set **Source** to **GitHub Actions**.
+2. In **Settings > Environments > github-pages**, make sure `main` is allowed to deploy.
+3. Merging to `main` runs the included workflow and publishes the site.
 
 ## Important
-Data is stored in the browser you use (IndexedDB), not on GitHub, and there is no account or cloud sync. Use **Export backup** regularly (or link an auto-backup file) and use **Import** to move characters between devices.
+Data lives in the browser you use (IndexedDB), not on GitHub, and there is no cloud sync. Use **Export** regularly (or link an auto-backup file) and **Import** to move between devices. An encrypted backup cannot be opened without its password.
 
 ## Run locally
 Open `index.html`, or run `python3 -m http.server`.
